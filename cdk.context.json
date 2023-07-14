@@ -1,0 +1,28 @@
+{
+  "vpc-provider:account=929556976395:filter.vpc-id=vpc-0b3e718e0d3a7b733:region=us-east-1:returnAsymmetricSubnets=true": {
+    "vpcId": "vpc-0b3e718e0d3a7b733",
+    "vpcCidrBlock": "10.0.0.0/16",
+    "ownerAccountId": "929556976395",
+    "availabilityZones": [],
+    "subnetGroups": [
+      {
+        "name": "isolated-subnet-1",
+        "type": "Isolated",
+        "subnets": [
+          {
+            "subnetId": "subnet-0bb2b086305501f1a",
+            "cidr": "10.0.0.0/28",
+            "availabilityZone": "us-east-1a",
+            "routeTableId": "rtb-02817e2e1986b64b7"
+          },
+          {
+            "subnetId": "subnet-01a3d0d4d6e40a074",
+            "cidr": "10.0.0.16/28",
+            "availabilityZone": "us-east-1b",
+            "routeTableId": "rtb-0d9f21b98331e6d68"
+          }
+        ]
+      }
+    ]
+  }
+}

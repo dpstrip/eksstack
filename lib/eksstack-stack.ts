@@ -5,16 +5,20 @@ import * as eks from 'aws-cdk-lib/aws-eks';
 import * as s3Assets from 'aws-cdk-lib/aws-s3-assets';
 import { Construct } from 'constructs';
 import { KubectlV23Layer } from '@aws-cdk/lambda-layer-kubectl-v23';
+import * as efs from 'aws-cdk-lib/aws-efs';
+import * as rds from 'aws-cdk-lib/aws-rds';
 
 export class EksstackStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
     const vpc = ec2.Vpc.fromLookup(this, 'vpc', {
-      vpcId: '',
+      vpcId: 'vpc-0b3e718e0d3a7b733',
     })
     
-  //bastion
+  /******************************************************/
+  /*** Create the bastion server                    *****/
+  /******************************************************/
   const asset = new s3Assets.Asset(this, 'S3Asset', {
     path: 'assets/kubectl'
   });
@@ -59,9 +63,70 @@ export class EksstackStack extends cdk.Stack {
   host.role.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AdministratorAccess'));
     
     
-    //efs
+  /******************************************************/
+  /*** Create the efs service                       *****/
+  /******************************************************/
+     //create efs within the vpc
+    const efsSecurityGroup = new ec2.SecurityGroup(this, 'efs-sg',{
+      vpc,
+      allowAllOutbound: true,
+      description: 'security group for efs'
+    });
     
-    //rds
+    const fileSytem = new efs.FileSystem(this, "MyEfsFileSystem",{
+      vpc,
+      encrypted: true,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      securityGroup: efsSecurityGroup,
+    });
+    
+    //create a volumn
+    const volume = { name: "volumn",
+      efsVolumnConfiguration: {
+        fileSystemId: fileSytem.fileSystemId
+      }
+    };
+    
+  /******************************************************/
+  /*** Create the rds service                       *****/
+  /******************************************************/
+    //Create the rds instance
+  const dbInstance = new rds.DatabaseInstance(this, 'db-instance',{
+    vpc,
+    vpcSubnets:{
+      subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
+    },
+    engine: rds.DatabaseInstanceEngine.postgres({
+      version: rds.PostgresEngineVersion.VER_14,
+    }),
+    instanceType: ec2.InstanceType.of(
+      ec2.InstanceClass.BURSTABLE3,
+      ec2.InstanceSize.MICRO,
+      ),
+    credentials: rds.Credentials.fromGeneratedSecret('postgres'),
+    multiAz: false,
+    allocatedStorage: 100,
+    maxAllocatedStorage: 110,
+    allowMajorVersionUpgrade: false,
+    autoMinorVersionUpgrade: true,
+    backupRetention: cdk.Duration.days(0),
+    deleteAutomatedBackups: true,
+    removalPolicy: cdk.RemovalPolicy.DESTROY,
+    deletionProtection: false,
+    databaseName: 'todosdb',
+    publiclyAccessible: false
+  });
+  
+  //dbInstance.connections.allowFrom(ec2Instance, ec2.Port.tcp(5432));
+  
+  new cdk.CfnOutput(this, 'dbEndpoint',
+  {
+    value:dbInstance.instanceEndpoint.hostname,
+  });
+  
+  new cdk.CfnOutput(this, 'secretName', {
+    value: dbInstance.secret?.secretName!,
+  });
     
     //cluster
     const cluster = new eks.Cluster(this, 'Cluster', {
@@ -71,7 +136,7 @@ export class EksstackStack extends cdk.Stack {
       version: eks.KubernetesVersion.V1_23,
       endpointAccess: eks.EndpointAccess.PRIVATE,
       vpcSubnets: [{ 
-          subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS
+          subnetType: ec2.SubnetType.PRIVATE_ISOLATED
       }],
       kubectlEnvironment: {
           // use vpc endpoint, not the global
