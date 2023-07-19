@@ -13,7 +13,7 @@ export class EksstackStack extends cdk.Stack {
     super(scope, id, props);
 
     const vpc = ec2.Vpc.fromLookup(this, 'vpc', {
-      vpcId: 'vpc-0ad625f9f9134af25',
+      vpcId: 'vpc-09f01e2718759c6eb',
     })
     
   /******************************************************/
